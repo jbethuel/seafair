@@ -5,7 +5,7 @@ import {
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { setSessionToken } from "@/lib/supabase/browser";
-import type { ActiveSession, Roster } from "./types";
+import type { ActiveSession, Roster, RosterMember } from "./types";
 import type { Role } from "@/lib/domain/types";
 
 const STORAGE_KEY = "seafair.session";
@@ -50,6 +50,26 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, ...next }));
   }, []);
 
+  /**
+   * Which vessel the bar should show for a given member.
+   *
+   * "All vessels" is offered to admins only, so for anyone else a null
+   * selection would leave the Select with a value matching no item and it would
+   * render blank. Non-admins therefore always land on a vessel they can reach.
+   *
+   * Shared by both entry points — switching member and restoring a session on
+   * load — because having them disagree is precisely the bug this fixes.
+   */
+  const vesselFor = useCallback(
+    (role: Role, memberId: string, members: RosterMember[], current: string | null) => {
+      if (role === "admin") return current;
+      const reachable = members.find((m) => m.id === memberId)?.vessel_ids ?? [];
+      if (current && reachable.includes(current)) return current;
+      return reachable[0] ?? null;
+    },
+    [],
+  );
+
   const establish = useCallback(
     async (userId: string) => {
       const res = await fetch("/api/session", {
@@ -82,26 +102,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         // member's permissions, even for a frame.
         queryClient.clear();
 
-        // An admin sees the whole fleet, so "All vessels" is a real option for
-        // them. For a captain or crew member it is not offered — which means a
-        // null selection would leave the Select with a value matching no item,
-        // rendering blank. So they always land on a vessel they can actually
-        // reach: the one they had, if still valid, otherwise their first.
-        if (next.user.role !== "admin") {
-          const member = roster?.members.find((m) => m.id === userId);
-          const reachable = member?.vessel_ids ?? [];
-          const keepCurrent = selectedVesselId && reachable.includes(selectedVesselId);
-          if (!keepCurrent) {
-            const fallback = reachable[0] ?? null;
-            setSelectedVesselId(fallback);
-            persist({ vesselId: fallback });
-          }
+        const vesselId = vesselFor(
+          next.user.role, userId, roster?.members ?? [], selectedVesselId);
+        if (vesselId !== selectedVesselId) {
+          setSelectedVesselId(vesselId);
+          persist({ vesselId });
         }
       } finally {
         setSwitching(false);
       }
     },
-    [establish, persist, queryClient, roster, selectedVesselId],
+    [establish, persist, queryClient, roster, selectedVesselId, vesselFor],
   );
 
   const selectVessel = useCallback(
@@ -159,14 +170,25 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         else persist({ roleFilter: null });
 
         if (canRestoreMember) {
-          await establish(stored.userId!).catch(() => {});
+          const restored = await establish(stored.userId!).catch(() => null);
+          if (restored) {
+            // Restoring goes through the same vessel rule as switching does.
+            const vesselId = vesselFor(
+              restored.user.role, restored.user.id, data.members,
+              stored.vesselId && data.vessels.some((v) => v.id === stored.vesselId)
+                ? stored.vesselId
+                : null,
+            );
+            setSelectedVesselId(vesselId);
+            persist({ vesselId });
+          }
         }
       } catch (error) {
         if (!cancelled) setRosterError((error as Error).message);
       }
     })();
     return () => { cancelled = true; };
-  }, [establish, persist]);
+  }, [establish, persist, vesselFor]);
 
   // Re-mint before expiry so a long review session never dies mid-click.
   useEffect(() => {
