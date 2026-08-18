@@ -16,7 +16,8 @@
     "db:seed": "tsx scripts/seed.mts",
     "db:perf": "tsx scripts/perf-check.mts",
     "db:schema": "tsx scripts/dump-schema.mts",
-    "deploy": "bash scripts/deploy.sh"
+    "deploy": "bash scripts/deploy.sh",
+    "verify:prod": "tsx scripts/verify-production.mts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",

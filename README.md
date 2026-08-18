@@ -4,7 +4,7 @@ Vessel-scoped work orders for a marine fleet. Captains raise work against a vess
 assign it to crew; crew document and complete it; captains attest or reject. Admins
 manage the fleet, its people, and who sails on what.
 
-- **Live:** _(deployment URL)_
+- **Live:** https://seafair-eight.vercel.app
 - **Stack:** Next.js 16 (App Router) · TypeScript (strict) · Supabase/Postgres · Tailwind 4 · shadcn/ui · TanStack Query
 
 ---
@@ -300,6 +300,8 @@ pnpm dev
 | `pnpm db:verify` | Prove the token path still works against live |
 | `pnpm db:perf` | Query plans and latency at volume |
 | `pnpm db:schema` | Regenerate `schema.sql` from the migrations |
+| `pnpm verify:prod` | Exercise the live deployment as a reviewer's browser would |
+| `pnpm deploy` | Push environment and ship to production |
 
 ### Configuration notes
 
