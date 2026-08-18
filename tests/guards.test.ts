@@ -1,6 +1,6 @@
 import { beforeAll, afterAll, beforeEach, expect, test } from "vitest";
 import { startHarness, type Harness } from "./harness";
-import { seedWorld, givenWorkOrder, closeWorkOrder, errcodeOf, type World } from "./fixtures";
+import { seedWorld, givenWorkOrder, closeWorkOrder, errcodeOf, messageOf, type World } from "./fixtures";
 
 let h: Harness;
 let w: World;
@@ -17,6 +17,21 @@ const deactivateUser = (id: string) =>
 test("R1: crew holding open work cannot be deactivated", async () => {
   await givenWorkOrder(h, { vessel: w.northernStar, createdBy: w.captainNS, assignee: w.crewNS });
   expect(await errcodeOf(() => deactivateUser(w.crewNS))).toBe("SF001");
+});
+
+test("guard messages name the person and read as English", async () => {
+  // These strings are what a person actually reads when the database refuses
+  // an action, so "1 open work order(s)" is a defect, not a detail.
+  await givenWorkOrder(h, { vessel: w.northernStar, createdBy: w.captainNS, assignee: w.crewNS });
+
+  const singular = await messageOf(() => deactivateUser(w.crewNS));
+  expect(singular).toContain("Tam Oduya");
+  expect(singular).toContain("1 open work order assigned");
+  expect(singular).not.toContain("(s)");
+
+  await givenWorkOrder(h, { vessel: w.northernStar, createdBy: w.captainNS, assignee: w.crewNS });
+  const plural = await messageOf(() => deactivateUser(w.crewNS));
+  expect(plural).toContain("2 open work orders assigned");
 });
 
 test("R1: crew whose work is closed can be deactivated", async () => {

@@ -53,7 +53,9 @@ export default function DashboardPage() {
               ? "Work orders assigned to you."
               : session.user.role === "captain"
                 ? "Work orders aboard your vessel."
-                : "Every work order in the fleet."}
+                : selectedVesselId
+                  ? "Every work order aboard this vessel."
+                  : "Every work order in the fleet."}
           </p>
         </div>
 

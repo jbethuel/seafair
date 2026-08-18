@@ -95,3 +95,13 @@ export async function errcodeOf(fn: () => Promise<unknown>): Promise<string> {
   }
   throw new Error("Expected the database to refuse this, but it succeeded.");
 }
+
+/** The message Postgres raised, for asserting on wording people actually read. */
+export async function messageOf(fn: () => Promise<unknown>): Promise<string> {
+  try {
+    await fn();
+  } catch (error) {
+    return (error as { message?: string }).message ?? "";
+  }
+  throw new Error("Expected the database to refuse this, but it succeeded.");
+}

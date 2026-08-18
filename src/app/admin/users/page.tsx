@@ -63,9 +63,10 @@ function UsersScreen() {
         </Select>
         <Button
           variant={showInactive ? "secondary" : "outline"} size="sm"
+          aria-pressed={showInactive}
           onClick={() => setShowInactive((v) => !v)}
         >
-          {showInactive ? "Hiding nothing" : "Active only"}
+          Show deactivated
         </Button>
         <span className="ml-auto text-sm text-muted-foreground">{visible.length} people</span>
       </div>
