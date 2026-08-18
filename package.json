@@ -12,7 +12,9 @@
     "typecheck": "tsc --noEmit",
     "db:migrate": "tsx scripts/migrate.mts",
     "db:reset": "tsx scripts/migrate.mts --reset",
-    "db:verify": "tsx scripts/verify-jwt.mts"
+    "db:verify": "tsx scripts/verify-jwt.mts",
+    "db:seed": "tsx scripts/seed.mts",
+    "db:perf": "tsx scripts/perf-check.mts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",

@@ -126,3 +126,33 @@ test("no member may write work_orders directly, whatever their role", async () =
     expect(outcome).toBe("refused");
   }
 });
+
+// --- Performance shape ------------------------------------------------------
+
+test("RLS helpers are evaluated once per statement, not once per row", async () => {
+  // Regression guard for a real defect: policies originally called
+  // app.has_vessel_access(work_orders.vessel_id), and passing a column made the
+  // call correlated, so Postgres ran it once per candidate row. Under seeded
+  // volume that was 91ms of a 25-row page. Any reintroduction shows up here as
+  // a SubPlan with loops > 1.
+  for (let i = 0; i < 40; i++) {
+    await givenWorkOrder(h, {
+      vessel: w.northernStar, createdBy: w.captainNS,
+      assignee: w.crewNS, title: `Job ${i}`,
+    });
+  }
+
+  const plan = await h.as(w.captainNS, async (db) =>
+    (await db.query(
+      `explain (analyze, format text)
+       select id, reference, title from public.work_orders
+       where vessel_id = $1 order by created_at desc, id desc limit 25`,
+      [w.northernStar],
+    )).rows.map((r) => r["QUERY PLAN"]).join("\n"));
+
+  const perRowLoops = /loops=(\d+)/g;
+  const loopCounts = [...plan.matchAll(perRowLoops)].map((m) => Number(m[1]));
+
+  expect(plan).not.toMatch(/SubPlan/);
+  expect(Math.max(...loopCounts)).toBe(1);
+});
