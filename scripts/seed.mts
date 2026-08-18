@@ -136,15 +136,30 @@ try {
     throw new Error("Name pool exhausted");
   };
 
-  for (const vessel of vessels) {
+  // The showcase vessel's crew are named, not drawn from the pool. The README's
+  // walkthrough tells a reviewer exactly who to select, and a reshuffle on every
+  // reseed would send them hunting for people who no longer exist.
+  const SHOWCASE_CAPTAINS = ["Iris Fenwick", "Lena Sato"];
+  const SHOWCASE_CREW = [
+    "Tam Oduya", "Rin Kato", "Noor Haddad",
+    "Callum Byrne", "Freya Lindqvist", "Kwame Mensah",
+  ];
+
+  for (const [index, vessel] of vessels.entries()) {
+    const isShowcase = index === 0;
+
     for (let i = 0; i < 2; i++) {
-      const id = await insertUser(nextName(), "captain");
+      const name = isShowcase ? SHOWCASE_CAPTAINS[i] : nextName();
+      if (isShowcase) usedNames.add(name);
+      const id = await insertUser(name, "captain");
       await db.query(`insert into public.vessel_assignments (user_id, vessel_id) values ($1,$2)`,
         [id, vessel.id]);
       vessel.captains.push(id);
     }
     for (let i = 0; i < 6; i++) {
-      const id = await insertUser(nextName(), "crew");
+      const name = isShowcase ? SHOWCASE_CREW[i] : nextName();
+      if (isShowcase) usedNames.add(name);
+      const id = await insertUser(name, "crew");
       await db.query(`insert into public.vessel_assignments (user_id, vessel_id) values ($1,$2)`,
         [id, vessel.id]);
       vessel.crew.push(id);

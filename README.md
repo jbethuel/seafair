@@ -11,24 +11,34 @@ manage the fleet, its people, and who sails on what.
 
 ## Sixty-second review
 
-The three dropdowns at the top are the mock authentication. Vessel narrows the roster,
-role narrows it further, and choosing a member switches the entire session to that
-person.
+**There is no login.** The brief forbids Supabase Email Auth, so the three dropdowns in
+the top bar *are* the authentication: vessel narrows the roster, role narrows it further,
+and choosing a member switches the entire session to that person. No password, no signup.
 
-1. **Pick vessel `Northern Star`, then member `Ada Harbour` (Admin).**
-   You get the whole fleet — 5,000+ work orders — plus Users, Vessels and Assignments.
-2. **Switch to a captain of Northern Star** (`Dmitri Karlsen` or `Lena Sato`).
-   Admin tabs vanish. Five hand-placed work orders show every state at once:
-   `WO-000001` Open · `WO-000002` In Progress · `WO-000003` Awaiting attestation ·
-   `WO-000004` rejected twice, with the reasons in its timeline · `WO-000005` Attested.
-3. **Open `WO-000003` and Attest or Reject it.** Reject requires a reason and returns
-   the work to the crew as In Progress. Open `WO-000004` to read a real rejection history.
-4. **Switch to the crew member named on `WO-000001`.** They see only their own work —
-   not their shipmates'. They can start it, document a solution, and mark it done, but
-   cannot attest their own work.
-5. **Switch back to `Ada Harbour` and try to deactivate a crew member holding open work**
-   (Users → Deactivate). The database refuses and names the obstacle. Reassign the work
-   first and it succeeds.
+The cast is fixed, so these names are always present:
+
+| Role | Who |
+|---|---|
+| Admin (fleet-wide, holds no vessel assignment) | `Ada Harbour`, `Bo Quayle` |
+| Captains of *Northern Star* | `Iris Fenwick`, `Lena Sato` |
+| Crew of *Northern Star* | `Tam Oduya`, `Rin Kato`, `Noor Haddad`, `Callum Byrne`, `Freya Lindqvist`, `Kwame Mensah` |
+
+1. **Select `Ada Harbour` in the third dropdown.** A second nav row appears —
+   **Users · Vessels · Assignments** — which is the Admin Management Dashboard. It is
+   hidden for every other role, and the database refuses those writes regardless of what
+   the interface shows. You also see all 5,000+ work orders across the fleet.
+2. **Set the first dropdown to `Northern Star`.** The member list narrows from 66 people
+   to the ten aboard that vessel, plus the two fleet-wide admins.
+3. **Switch to `Iris Fenwick` (Captain).** The admin tabs vanish. Five hand-placed work
+   orders show every state at once: `WO-000001` Open · `WO-000002` In Progress ·
+   `WO-000003` Awaiting attestation · `WO-000004` rejected twice, with both reasons in
+   its timeline · `WO-000005` Attested and closed.
+4. **Open `WO-000003` and Attest or Reject it.** Reject demands a reason and returns the
+   work to the crew as In Progress. Open `WO-000004` to read a real rejection history.
+5. **Switch to `Tam Oduya` (Crew).** They see only their own work, not their shipmates'.
+   They can start it, document a solution, and mark it done — but cannot attest it.
+6. **Back to `Ada Harbour`, then Users → deactivate a crew member holding open work.**
+   The database refuses and names the obstacle. Reassign their work first and it succeeds.
 
 Two things worth trying because they show the enforcement is real, not cosmetic:
 
