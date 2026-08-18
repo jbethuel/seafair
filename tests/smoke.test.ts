@@ -46,3 +46,17 @@ test("nobody may write work_orders directly", async () => {
   );
   expect(rows).toEqual([{ grantee: "authenticated", privilege_type: "SELECT" }]);
 });
+
+test("service_role can reach every table", async () => {
+  // Regression guard: db:reset drops the public schema, which discards the
+  // ALTER DEFAULT PRIVILEGES that give service_role its grants. The roster
+  // route then fails with "permission denied for table vessels" while every
+  // policy looks perfectly correct.
+  const { rows } = await h.root.query(
+    `select t.tablename
+       from pg_tables t
+      where t.schemaname = 'public'
+        and not has_table_privilege('service_role', 'public.' || t.tablename, 'SELECT')`,
+  );
+  expect(rows).toEqual([]);
+});

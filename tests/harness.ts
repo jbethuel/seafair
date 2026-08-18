@@ -53,11 +53,15 @@ export async function startHarness(): Promise<Harness> {
 
   const root = await connect();
 
-  // Supabase provides these; a bare Postgres does not.
+  // Supabase provides these; a bare Postgres does not. service_role is included
+  // because the migrations grant to it — omitting it would let a migration that
+  // works locally fail on deploy, which is exactly the drift this harness exists
+  // to catch.
   await root.query(`
     create role anon nologin;
     create role authenticated nologin;
-    grant anon, authenticated to postgres;
+    create role service_role nologin bypassrls;
+    grant anon, authenticated, service_role to postgres;
   `);
 
   const files = (await readdir(MIGRATIONS_DIR)).filter((f) => f.endsWith(".sql")).sort();
