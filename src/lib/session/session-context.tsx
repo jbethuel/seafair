@@ -82,14 +82,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         // member's permissions, even for a frame.
         queryClient.clear();
 
-        // An admin sees the whole fleet; a captain or crew member may not have
-        // access to whatever vessel was selected before. Drop a selection they
-        // cannot reach rather than leaving the bar pointing somewhere invalid.
-        if (next.user.role !== "admin" && selectedVesselId) {
+        // An admin sees the whole fleet, so "All vessels" is a real option for
+        // them. For a captain or crew member it is not offered — which means a
+        // null selection would leave the Select with a value matching no item,
+        // rendering blank. So they always land on a vessel they can actually
+        // reach: the one they had, if still valid, otherwise their first.
+        if (next.user.role !== "admin") {
           const member = roster?.members.find((m) => m.id === userId);
-          if (member && !member.vessel_ids.includes(selectedVesselId)) {
-            setSelectedVesselId(member.vessel_ids[0] ?? null);
-            persist({ vesselId: member.vessel_ids[0] ?? null });
+          const reachable = member?.vessel_ids ?? [];
+          const keepCurrent = selectedVesselId && reachable.includes(selectedVesselId);
+          if (!keepCurrent) {
+            const fallback = reachable[0] ?? null;
+            setSelectedVesselId(fallback);
+            persist({ vesselId: fallback });
           }
         }
       } finally {
@@ -139,19 +144,29 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         const stored: StoredSelection = JSON.parse(
           window.localStorage.getItem(STORAGE_KEY) ?? '{"userId":null,"vesselId":null,"roleFilter":null}',
         );
+        const canRestoreMember =
+          Boolean(stored.userId) && data.members.some((m) => m.id === stored.userId);
+
         if (stored.vesselId && data.vessels.some((v) => v.id === stored.vesselId)) {
           setSelectedVesselId(stored.vesselId);
         }
-        if (stored.roleFilter) setRoleFilter(stored.roleFilter);
-        if (stored.userId && data.members.some((m) => m.id === stored.userId)) {
-          await establish(stored.userId).catch(() => {});
+
+        // Only carry the role filter forward alongside the session it belonged
+        // to. Restoring it on its own strands a returning visitor: the empty
+        // state tells them to pick a specific admin, while a leftover "Crew"
+        // filter quietly removes that person from the list.
+        if (stored.roleFilter && canRestoreMember) setRoleFilter(stored.roleFilter);
+        else persist({ roleFilter: null });
+
+        if (canRestoreMember) {
+          await establish(stored.userId!).catch(() => {});
         }
       } catch (error) {
         if (!cancelled) setRosterError((error as Error).message);
       }
     })();
     return () => { cancelled = true; };
-  }, [establish]);
+  }, [establish, persist]);
 
   // Re-mint before expiry so a long review session never dies mid-click.
   useEffect(() => {
