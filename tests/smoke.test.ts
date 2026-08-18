@@ -52,11 +52,15 @@ test("service_role can reach every table", async () => {
   // ALTER DEFAULT PRIVILEGES that give service_role its grants. The roster
   // route then fails with "permission denied for table vessels" while every
   // policy looks perfectly correct.
+  // Passing the oid rather than a constructed name matters: the planner may
+  // apply has_table_privilege() before the schema filter, and a name like
+  // 'public.pg_statistic' then fails to resolve.
   const { rows } = await h.root.query(
-    `select t.tablename
-       from pg_tables t
-      where t.schemaname = 'public'
-        and not has_table_privilege('service_role', 'public.' || t.tablename, 'SELECT')`,
+    `select c.relname
+       from pg_class c
+      where c.relnamespace = 'public'::regnamespace
+        and c.relkind = 'r'
+        and not has_table_privilege('service_role', c.oid, 'SELECT')`,
   );
   expect(rows).toEqual([]);
 });

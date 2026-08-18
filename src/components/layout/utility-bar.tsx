@@ -29,14 +29,13 @@ export function UtilityBar() {
   const activeMember = session?.user ?? null;
   const isAdmin = activeMember?.role === "admin";
 
-  const vessels = roster?.vessels ?? [];
-
   // Admins reach the whole fleet; everyone else only their own postings.
   const selectableVessels = useMemo(() => {
-    if (!roster || !activeMember || isAdmin) return vessels;
+    const all = roster?.vessels ?? [];
+    if (!roster || !activeMember || isAdmin) return all;
     const me = roster.members.find((m) => m.id === activeMember.id);
-    return vessels.filter((v) => me?.vessel_ids.includes(v.id));
-  }, [roster, activeMember, isAdmin, vessels]);
+    return all.filter((v) => me?.vessel_ids.includes(v.id));
+  }, [roster, activeMember, isAdmin]);
 
   const members = useMemo(() => {
     if (!roster) return [];
