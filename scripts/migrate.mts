@@ -20,6 +20,9 @@ try {
       grant usage on schema public to anon, authenticated, service_role;
       grant all on schema public to postgres;
     `);
+    // Dropping the schema takes Supabase's ALTER DEFAULT PRIVILEGES with it.
+    // Migration 0007 puts them back; this note exists so the next person to
+    // read the reset path knows the grants are not incidental.
   }
 
   await db.query(`

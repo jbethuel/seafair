@@ -57,6 +57,10 @@ const REMEDIES = [
 
 const rand = <T,>(xs: readonly T[]): T => xs[Math.floor(Math.random() * xs.length)];
 const daysAgo = (n: number) => new Date(Date.now() - n * 86_400_000).toISOString();
+// Whole-day offsets cluster a dozen rows onto "just now" at the top of the list.
+// A fractional jitter spreads them across the day so the column reads naturally.
+const daysAgoJittered = (n: number) =>
+  new Date(Date.now() - (n + Math.random()) * 86_400_000).toISOString();
 
 const db = await connect();
 
@@ -98,11 +102,38 @@ try {
 
   // Two captains and six crew per vessel: enough that "last active captain"
   // rules have something to distinguish, and enough crew for reassignment.
+  //
+  // Names are drawn from a shuffled pool of distinct first/last pairings. Naive
+  // index arithmetic produces rosters full of near-duplicates — a dozen people
+  // surnamed Fen, and crew sharing first names with the admins — which reads as
+  // carelessness on the one screen a reviewer studies closely.
+  const namePool: string[] = [];
+  const adminFirstNames = new Set(["Ada", "Bo"]);
+  for (const last of LAST) {
+    for (const first of FIRST) {
+      if (adminFirstNames.has(first)) continue;
+      namePool.push(`${first} ${last}`);
+    }
+  }
+  for (let i = namePool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [namePool[i], namePool[j]] = [namePool[j], namePool[i]];
+  }
+
+  const usedNames = new Set<string>();
   let nameIndex = 0;
   const nextName = () => {
-    const name = `${FIRST[nameIndex % FIRST.length]} ${LAST[Math.floor(nameIndex / FIRST.length) % LAST.length]}`;
-    nameIndex++;
-    return name;
+    while (nameIndex < namePool.length) {
+      const candidate = namePool[nameIndex++];
+      const [, surname] = candidate.split(" ");
+      // Cap how often any surname recurs, so the roster reads like a crew list
+      // rather than one extended family.
+      const surnameCount = [...usedNames].filter((n) => n.endsWith(` ${surname}`)).length;
+      if (surnameCount >= 3) continue;
+      usedNames.add(candidate);
+      return candidate;
+    }
+    throw new Error("Name pool exhausted");
   };
 
   for (const vessel of vessels) {
@@ -120,7 +151,7 @@ try {
     }
   }
 
-  console.log(`seeded ${admins.length} admins, ${vessels.length} vessels, ${nameIndex} officers and crew`);
+  console.log(`seeded ${admins.length} admins, ${vessels.length} vessels, ${usedNames.size} officers and crew`);
 
   // --- Showcase fixtures on the first vessel --------------------------------
   const show = vessels[0];
@@ -203,7 +234,9 @@ try {
       const [title, issue] = rand(FAULTS);
       const assignee = rand(vessel.crew);
       const author = rand(vessel.captains);
-      const age = Math.floor(Math.random() * 400);
+      // Weight toward recent work so the default view is lively, with a long
+      // tail of history behind it.
+      const age = Math.floor(Math.random() ** 1.8 * 400) + 0.05;
 
       // Weighted so the fleet looks like real operations: mostly closed work,
       // a healthy tail in progress, a few awaiting attestation.
@@ -214,7 +247,8 @@ try {
 
       tuples.push(`($${p++},$${p++},$${p++},$${p++},$${p++},$${p++},$${p++},$${p++},$${p++},$${p++})`);
       rows.push(vessel.id, title, issue, solution, status, author, assignee,
-        attested ? daysAgo(age - 1) : null, attested ? author : null, daysAgo(age));
+        attested ? daysAgoJittered(Math.max(age - 1, 0)) : null,
+        attested ? author : null, daysAgoJittered(age));
     }
 
     await db.query(
