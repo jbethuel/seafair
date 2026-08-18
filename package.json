@@ -17,7 +17,10 @@
     "db:perf": "tsx scripts/perf-check.mts",
     "db:schema": "tsx scripts/dump-schema.mts",
     "deploy": "bash scripts/deploy.sh",
-    "verify:prod": "tsx scripts/verify-production.mts"
+    "verify:prod": "tsx scripts/verify-production.mts",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "db:sweep": "tsx scripts/sweep-e2e.mts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
@@ -39,6 +42,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pg": "^8.23.1",

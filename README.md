@@ -274,20 +274,49 @@ Dashboard tallies are one grouped RPC rather than five queries.
 
 ## Tests
 
-59 tests against a **project-local Postgres** (`embedded-postgres`) — no Supabase project,
-no network, no fixtures to maintain:
+Two suites, answering different questions.
+
+### Database rules — 61 tests, no network
 
 ```bash
 pnpm test
 ```
 
-They cover all six deactivation guards, duplicate keys across inactive rows, both CHECK
-constraints, illegal transitions, the full lifecycle across four actors, repeated
-rejections, and — most importantly — that **a crew member holding a valid token cannot
-read another vessel's work orders**.
+Runs against a **project-local Postgres** (`embedded-postgres`), so it needs no Supabase
+project and no network. Covers all six deactivation guards, duplicate keys across inactive
+rows, both CHECK constraints, illegal transitions, the full lifecycle across four actors,
+repeated rejections, the readability of the refusal messages, and — most importantly —
+that **a crew member holding a valid token cannot read another vessel's work orders**.
 
 This is possible because the migrations depend only on `current_setting()` and the
 `anon`/`authenticated` roles, with nothing Supabase-specific. Worth keeping true.
+
+### End to end — 25 tests, real browser
+
+```bash
+pnpm test:e2e          # add --ui to watch them run
+```
+
+Playwright drives Chromium through the actual interface, covering the two requirements
+that are mostly about behaviour rather than schema:
+
+- **Admin Management Dashboard** (14) — creating users, field validation, case-insensitive
+  duplicates, role changes, vessel CRUD, IMO validation, assignment and removal, and every
+  refusal: deactivating crew who hold open work, demoting them, removing the last captain
+  of a busy vessel, deactivating a vessel that still has work.
+- **Work Order Lifecycle** (11) — a captain raising work, crew starting and documenting it,
+  attestation closing it permanently, rejection with a mandatory reason returning it to the
+  crew, the activity timeline, crew seeing only their own work, and admins being unable to
+  attest.
+
+Each test asserts against the **database** after driving the UI, so nothing passes on an
+optimistic interface that never persisted anything.
+
+Two deliberate choices. Tests **create their own isolated fleet** rather than reseeding, so
+a run never destroys the showcase data a reviewer is looking at. And a **global teardown
+sweeps** every artefact by naming convention (`E2E ` vessels, `@e2e.test` users), because
+per-test cleanup cannot know about records created through the interface and a failing test
+never reaches its own teardown. `pnpm db:sweep` runs it by hand.
 
 ---
 
@@ -303,7 +332,9 @@ pnpm dev
 
 | Script | Purpose |
 |---|---|
-| `pnpm test` | Full suite against a local throwaway Postgres |
+| `pnpm test` | Database rules, against a local throwaway Postgres |
+| `pnpm test:e2e` | Browser tests through the real interface |
+| `pnpm db:sweep` | Remove anything an interrupted e2e run left behind |
 | `pnpm db:migrate` | Apply pending migrations |
 | `pnpm db:reset` | Drop and rebuild the schema, then migrate |
 | `pnpm db:seed` | Reseed the fleet |

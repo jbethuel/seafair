@@ -69,7 +69,7 @@ export default function DashboardPage() {
         )}
       </header>
 
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-1.5" data-testid="status-filters">
         {FILTERS.map((f) => (
           <Button
             key={f.label}

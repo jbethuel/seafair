@@ -66,7 +66,11 @@ function VesselCard({ vessel }: { vessel: Vessel }) {
   };
 
   return (
-    <div className={`rounded-lg border p-4 ${vessel.is_active ? "" : "opacity-60"}`}>
+    <div
+      data-testid="vessel-card"
+      data-vessel-name={vessel.name}
+      className={`rounded-lg border p-4 ${vessel.is_active ? "" : "opacity-60"}`}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate font-medium">{vessel.name}</p>

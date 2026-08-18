@@ -66,7 +66,12 @@ function AssignmentsScreen() {
               a.user!.full_name.localeCompare(b.user!.full_name));
 
           return (
-            <section key={vessel.id} className="rounded-lg border">
+            <section
+              key={vessel.id}
+              data-testid="vessel-assignments"
+              data-vessel-name={vessel.name}
+              className="rounded-lg border"
+            >
               <header className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/30 px-4 py-3">
                 <div className="flex items-center gap-2">
                   <h2 className="font-medium">{vessel.name}</h2>
