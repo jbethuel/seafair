@@ -9,7 +9,10 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "tsx scripts/migrate.mts",
+    "db:reset": "tsx scripts/migrate.mts --reset",
+    "db:verify": "tsx scripts/verify-jwt.mts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",

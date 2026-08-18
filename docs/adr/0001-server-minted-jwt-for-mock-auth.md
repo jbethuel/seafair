@@ -36,7 +36,13 @@ question of *authority* is answered by the database.
 - The token carries identity and Role, never a list of Vessels. Vessel access is
   derived from Assignments at query time, so revoking an Assignment takes effect
   immediately rather than at token expiry.
-- If the project's gateway will not honour a self-signed HS256 token (projects created
-  after Oct 2025 default to asymmetric signing keys), the fallback is to verify the
-  same token inside Postgres via a `SECURITY DEFINER` function using `pgcrypto.hmac()`
-  and a secret held in Vault. Policy shape is unchanged either way.
+- Verified against the live project rather than assumed. `scripts/verify-jwt.mts`
+  mints a token, calls the REST API, and asserts three things: the gateway accepts a
+  token we signed ourselves, RLS resolves `auth.uid()` from it, and a member of another
+  vessel receives an empty result rather than someone else's work. The anon key alone
+  returns 401, confirming the public role holds no privilege. Re-run it after any change
+  to the project's JWT settings.
+- This depends on the project's legacy symmetric JWT secret, which Supabase deprecates
+  at the end of 2026. Should it be withdrawn, the fallback is to verify the same token
+  inside Postgres via a `SECURITY DEFINER` function using `pgcrypto.hmac()` with the
+  secret held in Vault. Only `app.current_user_id()` would change; no policy moves.
