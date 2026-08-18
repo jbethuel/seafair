@@ -9,15 +9,18 @@ it turns every list query into an aggregate over the event stream — and this p
 explicitly graded on handling large data volumes without lag. Storing the status keeps
 the hot query a single indexed scan.
 
-Drift is prevented instead by writing events from a database trigger inside the same
-transaction as the mutation, so the log cannot fall out of step with the row even for a
-client that bypasses the application entirely.
+Drift is prevented instead by making the lifecycle functions the only write path: no
+role holds INSERT, UPDATE, or DELETE on `work_orders`, so every mutation necessarily
+runs through a function that appends its event in the same transaction. There is no
+way to change a work order without logging it, because there is no way to change one
+at all except through those functions.
 
 ## Consequences
 
 - Work order lists and dashboard tallies read one indexed table.
-- The event log is guaranteed complete, since nothing can update a Work Order without
-  the trigger appending to it.
+- The event log is guaranteed complete, since the only write path appends to it.
 - Business rules that constrain the lifecycle live as `CHECK` constraints and triggers
   in Postgres, not as application code: no transition to `Done` without a Solution, and
   no rejection event without a comment.
+- Transition legality is a trigger rather than a branch inside each function, so it
+  still holds against `service_role`, the seed script, and any future migration.
