@@ -34,13 +34,36 @@ export function readEnvFile(path = ".env.local"): Record<string, string> {
 export const env = { ...readEnvFile(), ...process.env } as Record<string, string>;
 
 /**
- * Splits the connection URI on its LAST `@`, so an unencoded `@` inside the
- * password cannot be mistaken for the host separator, and hands pg discrete
- * fields so no URI escaping is involved at all.
+ * Builds the connection.
+ *
+ * Prefers SUPABASE_DB_PASSWORD, because a bare password cannot be mangled: no
+ * percent-encoding, no `@` ambiguity, no `#` comment truncation. The host is
+ * derived from the project URL. DATABASE_URL remains supported for anyone who
+ * already has one, and is split on its LAST `@` so a password containing `@`
+ * is not mistaken for the host separator.
  */
 export function connectionConfig(): ClientConfig {
+  const ssl = { rejectUnauthorized: false };
+
+  const password = env.SUPABASE_DB_PASSWORD;
+  if (password) {
+    const projectUrl = env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!projectUrl) throw new Error("NEXT_PUBLIC_SUPABASE_URL is required alongside SUPABASE_DB_PASSWORD");
+    const ref = new URL(projectUrl).hostname.split(".")[0];
+    return {
+      host: `db.${ref}.supabase.co`,
+      port: 5432,
+      user: "postgres",
+      password,
+      database: "postgres",
+      ssl,
+    };
+  }
+
   const raw = env.DATABASE_URL;
-  if (!raw) throw new Error("DATABASE_URL is not set in .env.local");
+  if (!raw) {
+    throw new Error("Set SUPABASE_DB_PASSWORD (preferred) or DATABASE_URL in .env.local");
+  }
 
   const withoutScheme = raw.replace(/^postgres(?:ql)?:\/\//, "");
   const at = withoutScheme.lastIndexOf("@");
@@ -50,25 +73,18 @@ export function connectionConfig(): ClientConfig {
   const hostPart = withoutScheme.slice(at + 1);
 
   const colon = credentials.indexOf(":");
-  const user = decodeURIComponent(credentials.slice(0, colon));
-  const rawPassword = credentials.slice(colon + 1);
-  const password = /%[0-9a-fA-F]{2}/.test(rawPassword)
-    ? decodeURIComponent(rawPassword)
-    : rawPassword;
+  const user = credentials.slice(0, colon);
+  // Taken literally, never percent-decoded. Supabase shows the password raw and
+  // .env.example says to paste it raw, so decoding would corrupt any password
+  // containing a literal `%` — and a trailing `%` makes decodeURIComponent throw.
+  const urlPassword = credentials.slice(colon + 1);
 
   const [hostAndPort, database = "postgres"] = hostPart.split("/");
   const lastColon = hostAndPort.lastIndexOf(":");
   const host = lastColon === -1 ? hostAndPort : hostAndPort.slice(0, lastColon);
   const port = lastColon === -1 ? 5432 : Number(hostAndPort.slice(lastColon + 1));
 
-  return {
-    host,
-    port,
-    user,
-    password,
-    database: database.split("?")[0],
-    ssl: { rejectUnauthorized: false },
-  };
+  return { host, port, user, password: urlPassword, database: database.split("?")[0], ssl };
 }
 
 export async function connect(): Promise<Client> {
