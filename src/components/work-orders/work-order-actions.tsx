@@ -223,8 +223,13 @@ function AdminActions({ workOrder }: { workOrder: WorkOrder }) {
 function ReassignControl({ workOrder }: { workOrder: WorkOrder }) {
   const [open, setOpen] = useState(false);
   const [assigneeId, setAssigneeId] = useState("");
-  const { data: crew } = useAssignableCrew(open ? workOrder.vessel_id : null);
+  const { data: crew, isPending } = useAssignableCrew(open ? workOrder.vessel_id : null);
   const reassign = useReassignWorkOrder();
+
+  // The query only runs once the dialog is open, so a closed dialog reports
+  // pending forever — read it as "loading" only while the dialog is showing.
+  const loadingCrew = open && isPending;
+  const candidates = (crew ?? []).filter((c) => c.id !== workOrder.assignee_id);
 
   return (
     <>
@@ -239,23 +244,29 @@ function ReassignControl({ workOrder }: { workOrder: WorkOrder }) {
               Only active crew assigned to this vessel can take it on.
             </DialogDescription>
           </DialogHeader>
-          <Select value={assigneeId} onValueChange={setAssigneeId}>
+          <Select value={assigneeId} onValueChange={setAssigneeId} disabled={loadingCrew}>
             <SelectTrigger className="w-full">
-              <SelectValue placeholder="Choose a crew member" />
+              <SelectValue placeholder={loadingCrew ? "Loading crew…" : "Choose a crew member"} />
             </SelectTrigger>
             <SelectContent>
-              {(crew ?? [])
-                .filter((c) => c.id !== workOrder.assignee_id)
-                .map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    <span className="flex w-full items-center gap-2">
-                      <span className="truncate">{c.full_name}</span>
-                      <span className="ml-auto text-[10px] text-muted-foreground">
-                        {c.open_work} open
-                      </span>
+              {loadingCrew ? (
+                <div className="flex items-center gap-2 px-2 py-3 text-sm text-muted-foreground">
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden /> Loading crew…
+                </div>
+              ) : candidates.length === 0 ? (
+                <div className="px-2 py-3 text-sm text-muted-foreground">
+                  Nobody else aboard this vessel can take it on.
+                </div>
+              ) : candidates.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  <span className="flex w-full items-center gap-2">
+                    <span className="truncate">{c.full_name}</span>
+                    <span className="ml-auto text-[10px] text-muted-foreground">
+                      {c.open_work} open
                     </span>
-                  </SelectItem>
-                ))}
+                  </span>
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           <DialogFooter>

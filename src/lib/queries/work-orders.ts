@@ -1,7 +1,10 @@
 "use client";
 
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData,
+} from "@tanstack/react-query";
 import { getSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { useActiveMember } from "@/lib/session/session-context";
 import type { WorkOrder, WorkOrderStatus } from "@/lib/domain/types";
 
 export const PAGE_SIZE = 25;
@@ -18,16 +21,44 @@ interface Cursor {
 }
 
 /**
+ * A `placeholderData` function that carries the previous result across a key
+ * change, but only while the same member is acting.
+ *
+ * Every key built with it puts the member id at index 1, so the guard is a
+ * single comparison against the key that produced the data.
+ */
+function keptForSameMember<TData>(memberId: string | null) {
+  return (
+    previous: TData | undefined,
+    previousQuery?: { queryKey: readonly unknown[] },
+  ): TData | undefined =>
+    previousQuery?.queryKey[1] === memberId ? previous : undefined;
+}
+
+export interface WorkOrderTallies {
+  open: number; in_progress: number; done: number;
+  awaiting_attestation: number; closed: number; total: number;
+}
+
+/**
  * Cursor pagination on (created_at desc, id desc).
  *
  * Deliberately not `.range()`: offset pagination re-scans everything it skips,
  * and shifts rows under the reader whenever a work order is raised mid-scroll.
  * The composite cursor is stable and the index serves it directly.
+ *
+ * Changing vessel or status filter keeps the rows already on screen — dimmed —
+ * until the new ones arrive, rather than collapsing the table into skeletons on
+ * every click. Switching member does not: `keptForSameMember` drops the rows
+ * the instant the identity changes, because showing one member's work to
+ * another for even a frame is exactly what clearing the cache prevents.
  */
 export function useWorkOrders(filters: WorkOrderFilters, enabled = true) {
+  const memberId = useActiveMember()?.id ?? null;
   return useInfiniteQuery({
-    queryKey: ["work-orders", filters],
+    queryKey: ["work-orders", memberId, filters],
     enabled,
+    placeholderData: keptForSameMember<InfiniteData<WorkOrder[], Cursor | null>>(memberId),
     initialPageParam: null as Cursor | null,
     queryFn: async ({ pageParam }) => {
       const supabase = getSupabaseBrowserClient();
@@ -96,17 +127,16 @@ export function useWorkOrderTimeline(id: string | null) {
 
 /** Status tallies for the selected vessel, as one grouped round trip. */
 export function useWorkOrderTallies(vesselId: string | null, enabled = true) {
+  const memberId = useActiveMember()?.id ?? null;
   return useQuery({
-    queryKey: ["work-order-tallies", vesselId],
+    queryKey: ["work-order-tallies", memberId, vesselId],
     enabled,
+    placeholderData: keptForSameMember<WorkOrderTallies>(memberId),
     queryFn: async () => {
       const { data, error } = await getSupabaseBrowserClient()
         .rpc("work_order_tallies", { p_vessel_id: vesselId });
       if (error) throw error;
-      return data as {
-        open: number; in_progress: number; done: number;
-        awaiting_attestation: number; closed: number; total: number;
-      };
+      return data as WorkOrderTallies;
     },
   });
 }

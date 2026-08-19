@@ -23,8 +23,14 @@ const ALL = "__all__";
 export function UtilityBar() {
   const {
     roster, rosterError, session, selectedVesselId, roleFilter, switching,
-    switchMember, selectVessel, selectRole,
+    bootstrapping, switchMember, selectVessel, selectRole,
   } = useSession();
+
+  // The roster arrives before a stored member is back on their feet, so the bar
+  // is briefly populated but not yet answerable. Saying so beats offering a
+  // switcher that is about to overwrite whatever the reviewer picks.
+  const restoring = bootstrapping && Boolean(roster);
+  const memberBusy = switching || restoring;
 
   const activeMember = session?.user ?? null;
   const isAdmin = activeMember?.role === "admin";
@@ -111,13 +117,15 @@ export function UtilityBar() {
             <Select
               value={activeMember?.id ?? ""}
               onValueChange={(id) => void switchMember(id)}
-              disabled={switching}
+              disabled={memberBusy}
             >
               <SelectTrigger className="w-full" aria-label="Active member">
-                {switching
+                {memberBusy
                   ? <Loader2 className="size-3.5 animate-spin opacity-60" aria-hidden />
                   : <ShieldCheck className="size-3.5 opacity-60" aria-hidden />}
-                <SelectValue placeholder="Choose a member to begin" />
+                <SelectValue
+                  placeholder={restoring ? "Restoring session…" : "Choose a member to begin"}
+                />
               </SelectTrigger>
               <SelectContent>
                 {members.length === 0 ? (

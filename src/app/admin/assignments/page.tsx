@@ -12,6 +12,7 @@ import { humanError } from "@/lib/errors";
 import { ROLE_LABELS } from "@/lib/domain/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AssignmentsPageSkeleton } from "@/components/layout/skeletons";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
@@ -22,7 +23,7 @@ import {
 } from "@/components/ui/select";
 
 export default function AssignmentsPage() {
-  return <AdminGuard><AssignmentsScreen /></AdminGuard>;
+  return <AdminGuard fallback={<AssignmentsPageSkeleton />}><AssignmentsScreen /></AdminGuard>;
 }
 
 function AssignmentsScreen() {

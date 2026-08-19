@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { SessionProvider } from "@/lib/session/session-context";
+import { LoadingBar } from "@/components/layout/loading-bar";
 import { Toaster } from "@/components/ui/sonner";
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
@@ -22,6 +23,7 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <SessionProvider>
+        <LoadingBar />
         {children}
         <Toaster richColors position="top-right" />
       </SessionProvider>

@@ -128,3 +128,48 @@
     @apply font-sans;
   }
 }
+/*
+ * The indeterminate sweep behind `LoadingBar`. Indeterminate on purpose: the
+ * app cannot know how far along a Supabase round trip is, and a progress bar
+ * that invents a percentage is worse than one that admits it is only waiting.
+ */
+@keyframes seafair-progress {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+.seafair-progress-sweep {
+  animation: seafair-progress 1.2s ease-in-out infinite;
+}
+
+/* Absent by default, and slow to admit it is waiting: the bar only fades in
+   once a request has outlasted the delay below. Fading out is immediate. */
+.seafair-progress {
+  opacity: 0;
+  transition: opacity 250ms ease;
+}
+
+.seafair-progress[data-busy="true"] {
+  animation: seafair-progress-in 200ms ease 250ms forwards;
+}
+
+@keyframes seafair-progress-in {
+  to { opacity: 1; }
+}
+
+/* Honour a stated preference for stillness: hold the bar and the skeleton
+   shimmer steady rather than animating them. */
+@media (prefers-reduced-motion: reduce) {
+  .seafair-progress-sweep,
+  [data-slot="skeleton"] {
+    animation: none;
+  }
+  /* The bar still needs to appear — only its travel is stilled, so it sits as
+     a static rule rather than sweeping. */
+  .seafair-progress[data-busy="true"] {
+    animation-duration: 1ms;
+  }
+  .seafair-progress-sweep {
+    width: 100%;
+  }
+}

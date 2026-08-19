@@ -9,7 +9,9 @@ import { StatusBadge } from "./status-badge";
 import { relativeTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InlineSkeleton, RowsSkeleton } from "@/components/layout/skeletons";
 import { humanError } from "@/lib/errors";
+import { cn } from "@/lib/utils";
 
 /**
  * Two presentations of the same data rather than one that bends.
@@ -20,7 +22,7 @@ import { humanError } from "@/lib/errors";
  */
 export function WorkOrderList({ filters }: { filters: WorkOrderFilters }) {
   const query = useWorkOrders(filters);
-  const { data: users } = useUsers();
+  const { data: users, isPending: usersPending } = useUsers();
 
   const nameById = useMemo(
     () => new Map((users ?? []).map((u) => [u.id, u.full_name])),
@@ -29,13 +31,9 @@ export function WorkOrderList({ filters }: { filters: WorkOrderFilters }) {
 
   const rows = useMemo(() => query.data?.pages.flat() ?? [], [query.data]);
 
-  if (query.isPending) {
-    return (
-      <div className="space-y-2" aria-busy>
-        {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
-      </div>
-    );
-  }
+  // Only the very first load has nothing to show. Every later change of vessel
+  // or filter arrives as placeholder data, so the rows below stay put.
+  if (query.isPending) return <RowsSkeleton />;
 
   if (query.isError) {
     return (
@@ -56,8 +54,15 @@ export function WorkOrderList({ filters }: { filters: WorkOrderFilters }) {
     );
   }
 
+  // `isPlaceholderData` means these rows answer the previous filter. Dimming
+  // says so without taking them away, and the pointer keeps its target.
+  const stale = query.isPlaceholderData;
+
   return (
-    <div className="space-y-4">
+    <div
+      className={cn("space-y-4 transition-opacity duration-200", stale && "opacity-50")}
+      aria-busy={stale || undefined}
+    >
       {/* Desktop */}
       <div className="hidden overflow-hidden rounded-lg border md:block">
         <table className="w-full text-sm">
@@ -84,7 +89,9 @@ export function WorkOrderList({ filters }: { filters: WorkOrderFilters }) {
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
-                  {nameById.get(wo.assignee_id) ?? "—"}
+                  {usersPending
+                    ? <Skeleton className="h-3.5 w-24" />
+                    : nameById.get(wo.assignee_id) ?? "—"}
                 </td>
                 <td className="px-4 py-3"><StatusBadge workOrder={wo} /></td>
                 <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
@@ -110,7 +117,10 @@ export function WorkOrderList({ filters }: { filters: WorkOrderFilters }) {
               </div>
               <p className="mt-1.5 font-medium leading-snug">{wo.title}</p>
               <p className="mt-2 text-xs text-muted-foreground">
-                {nameById.get(wo.assignee_id) ?? "Unassigned"} · {relativeTime(wo.created_at)}
+                {usersPending
+                  ? <InlineSkeleton className="h-3 w-20" />
+                  : nameById.get(wo.assignee_id) ?? "Unassigned"}
+                {" · "}{relativeTime(wo.created_at)}
               </p>
             </Link>
           </li>

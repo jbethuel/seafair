@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { CardGridSkeleton, VesselsPageSkeleton } from "@/components/layout/skeletons";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
   DialogTitle, DialogTrigger,
@@ -28,7 +28,7 @@ const vesselSchema = z.object({
 });
 
 export default function VesselsPage() {
-  return <AdminGuard><VesselsScreen /></AdminGuard>;
+  return <AdminGuard fallback={<VesselsPageSkeleton />}><VesselsScreen /></AdminGuard>;
 }
 
 function VesselsScreen() {
@@ -41,9 +41,7 @@ function VesselsScreen() {
       action={<CreateVesselDialog />}
     >
       {isPending ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
-        </div>
+        <CardGridSkeleton />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {(vessels ?? []).map((v) => <VesselCard key={v.id} vessel={v} />)}

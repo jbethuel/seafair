@@ -24,8 +24,10 @@ test.describe("Admin management dashboard", () => {
     await expect(page.getByRole("link", { name: "Users" })).toHaveCount(0);
     await expect(page.getByRole("link", { name: "Vessels" })).toHaveCount(0);
 
+    // A non-admin is not shown a wall, but returned to the work orders.
     await page.goto("/admin/users");
-    await expect(page.getByText("Admins only")).toBeVisible();
+    await expect(page).toHaveURL(/\/$/);
+    await expectToast(page, /limited to admins/i);
 
     await asAdmin(page);
     for (const tab of ["Work Orders", "Users", "Vessels", "Assignments"]) {

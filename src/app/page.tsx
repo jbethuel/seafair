@@ -2,17 +2,20 @@
 
 import { useMemo, useState } from "react";
 import { useSession } from "@/lib/session/session-context";
-import { useWorkOrderTallies, type WorkOrderFilters } from "@/lib/queries/work-orders";
+import {
+  useWorkOrderTallies, type WorkOrderFilters, type WorkOrderTallies,
+} from "@/lib/queries/work-orders";
 import { WorkOrderList } from "@/components/work-orders/work-order-list";
 import { CreateWorkOrderDialog } from "@/components/work-orders/create-work-order-dialog";
 import { NoSession } from "@/components/layout/no-session";
+import { DashboardSkeleton } from "@/components/layout/skeletons";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { WorkOrderStatus } from "@/lib/domain/types";
 
 type Filter = WorkOrderStatus | "awaiting" | null;
 
-const FILTERS: { value: Filter; label: string; tally: keyof Tallies }[] = [
+const FILTERS: { value: Filter; label: string; tally: keyof WorkOrderTallies }[] = [
   { value: null, label: "All", tally: "total" },
   { value: "open", label: "Open", tally: "open" },
   { value: "in_progress", label: "In Progress", tally: "in_progress" },
@@ -20,13 +23,8 @@ const FILTERS: { value: Filter; label: string; tally: keyof Tallies }[] = [
   { value: "done", label: "Done", tally: "done" },
 ];
 
-interface Tallies {
-  open: number; in_progress: number; done: number;
-  awaiting_attestation: number; closed: number; total: number;
-}
-
 export default function DashboardPage() {
-  const { session, selectedVesselId, roster } = useSession();
+  const { session, selectedVesselId, roster, bootstrapping } = useSession();
   const [filter, setFilter] = useState<Filter>(null);
 
   const vesselName = useMemo(
@@ -34,8 +32,10 @@ export default function DashboardPage() {
     [roster, selectedVesselId],
   );
 
-  const { data: tallies } = useWorkOrderTallies(selectedVesselId, Boolean(session));
+  const talliesQuery = useWorkOrderTallies(selectedVesselId, Boolean(session));
+  const tallies = talliesQuery.data;
 
+  if (bootstrapping) return <DashboardSkeleton />;
   if (!session) return <NoSession />;
 
   const isCaptain = session.user.role === "captain";
@@ -79,14 +79,17 @@ export default function DashboardPage() {
             className={cn("h-8", filter === f.value && "shadow-sm")}
           >
             {f.label}
-            {tallies && (
-              <span className={cn(
-                "ml-1.5 rounded px-1.5 py-0.5 text-[10px] tabular-nums",
-                filter === f.value ? "bg-primary-foreground/20" : "bg-muted",
-              )}>
-                {tallies[f.tally]}
-              </span>
-            )}
+            {/* Rendered whether or not the count has arrived: a badge that
+                appears late resizes the pill under the pointer. */}
+            <span className={cn(
+              "ml-1.5 inline-flex min-w-6 justify-center rounded px-1.5 py-0.5 text-[10px] tabular-nums transition-opacity",
+              filter === f.value ? "bg-primary-foreground/20" : "bg-muted",
+              talliesQuery.isPlaceholderData && "opacity-50",
+            )}>
+              {tallies
+                ? tallies[f.tally]
+                : <span className="h-2.5 w-3 animate-pulse self-center rounded-sm bg-current opacity-30" />}
+            </span>
           </Button>
         ))}
       </div>

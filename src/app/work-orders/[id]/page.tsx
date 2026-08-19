@@ -11,12 +11,12 @@ import { Timeline } from "@/components/work-orders/timeline";
 import { WorkOrderActions } from "@/components/work-orders/work-order-actions";
 import { NoSession } from "@/components/layout/no-session";
 import { absoluteTime } from "@/lib/format";
-import { Skeleton } from "@/components/ui/skeleton";
+import { InlineSkeleton, WorkOrderDetailSkeleton } from "@/components/layout/skeletons";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function WorkOrderPage({ params }: PageProps<"/work-orders/[id]">) {
   const { id } = use(params);
-  const { session } = useSession();
+  const { session, bootstrapping } = useSession();
   const { data: workOrder, isPending, isError } = useWorkOrder(session ? id : null);
   const { data: users } = useUsers(Boolean(session));
   const { data: vessels } = useVessels(Boolean(session));
@@ -27,16 +27,12 @@ export default function WorkOrderPage({ params }: PageProps<"/work-orders/[id]">
     () => vessels?.find((v) => v.id === workOrder?.vessel_id)?.name,
     [vessels, workOrder]);
 
+  // A deep link lands here before the stored session has been re-established.
+  // The skeleton covers both that wait and the work order's own fetch, so the
+  // page settles once rather than flashing "not available" in between.
+  if (bootstrapping) return <WorkOrderDetailSkeleton />;
   if (!session) return <NoSession />;
-
-  if (isPending) {
-    return (
-      <div className="mx-auto max-w-4xl space-y-4 px-4 py-6">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-40 w-full" />
-      </div>
-    );
-  }
+  if (isPending) return <WorkOrderDetailSkeleton />;
 
   // RLS returns nothing rather than refusing, so "not found" and "not yours"
   // are deliberately indistinguishable from here — which is the point.
@@ -71,9 +67,12 @@ export default function WorkOrderPage({ params }: PageProps<"/work-orders/[id]">
         </div>
         <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{workOrder.title}</h1>
         <p className="text-sm text-muted-foreground">
-          {vesselName} · assigned to {nameById.get(workOrder.assignee_id) ?? "—"} ·
-          raised by {nameById.get(workOrder.created_by) ?? "—"} on{" "}
-          {absoluteTime(workOrder.created_at)}
+          {vesselName ?? <InlineSkeleton className="h-3.5 w-28" />}
+          {" · "}assigned to {nameById.get(workOrder.assignee_id)
+            ?? <InlineSkeleton className="h-3.5 w-24" />}
+          {" · "}raised by {nameById.get(workOrder.created_by)
+            ?? <InlineSkeleton className="h-3.5 w-24" />}
+          {" on "}{absoluteTime(workOrder.created_at)}
         </p>
       </header>
 

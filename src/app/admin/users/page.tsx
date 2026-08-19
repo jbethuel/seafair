@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { RowsSkeleton, UsersPageSkeleton } from "@/components/layout/skeletons";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
   DialogTitle, DialogTrigger,
@@ -30,7 +30,7 @@ const userSchema = z.object({
 
 export default function UsersPage() {
   return (
-    <AdminGuard>
+    <AdminGuard fallback={<UsersPageSkeleton />}>
       <UsersScreen />
     </AdminGuard>
   );
@@ -72,9 +72,7 @@ function UsersScreen() {
       </div>
 
       {isPending ? (
-        <div className="space-y-2">
-          {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-14 w-full" />)}
-        </div>
+        <RowsSkeleton rows={8} className="h-14" />
       ) : (
         <>
           <div className="hidden overflow-hidden rounded-lg border md:block">

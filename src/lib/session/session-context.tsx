@@ -20,6 +20,13 @@ interface SessionContextValue {
   roster: Roster | null;
   rosterError: string | null;
   session: ActiveSession | null;
+  /**
+   * True from first paint until the roster has loaded and any stored member has
+   * been restored. Screens show their skeleton while it holds, rather than the
+   * "choose a member" empty state — telling a returning reviewer to sign in
+   * again, a frame before their session reappears, is a lie the UI can avoid.
+   */
+  bootstrapping: boolean;
   /** The vessel chosen in the utility bar. A view filter, never an authority. */
   selectedVesselId: string | null;
   roleFilter: Role | null;
@@ -40,6 +47,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [selectedVesselId, setSelectedVesselId] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<Role | null>(null);
   const [switching, setSwitching] = useState(false);
+  const [bootstrapping, setBootstrapping] = useState(true);
   const restored = useRef(false);
 
   const persist = useCallback((next: Partial<StoredSelection>) => {
@@ -185,6 +193,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         if (!cancelled) setRosterError((error as Error).message);
+      } finally {
+        // Runs for the early returns above too, so a visitor with nothing
+        // stored waits only as long as the roster request itself.
+        if (!cancelled) setBootstrapping(false);
       }
     })();
     return () => { cancelled = true; };
@@ -202,11 +214,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<SessionContextValue>(
     () => ({
-      roster, rosterError, session, selectedVesselId, roleFilter, switching,
-      switchMember, selectVessel, selectRole, signOut,
+      roster, rosterError, session, bootstrapping, selectedVesselId, roleFilter,
+      switching, switchMember, selectVessel, selectRole, signOut,
     }),
-    [roster, rosterError, session, selectedVesselId, roleFilter, switching,
-     switchMember, selectVessel, selectRole, signOut],
+    [roster, rosterError, session, bootstrapping, selectedVesselId, roleFilter,
+     switching, switchMember, selectVessel, selectRole, signOut],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

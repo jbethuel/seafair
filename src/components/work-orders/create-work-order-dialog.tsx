@@ -93,7 +93,11 @@ export function CreateWorkOrderDialog({ vesselId }: { vesselId: string }) {
                 <SelectValue placeholder={isPending ? "Loading crew…" : "Choose a crew member"} />
               </SelectTrigger>
               <SelectContent>
-                {(crew ?? []).length === 0 ? (
+                {isPending ? (
+                  <div className="flex items-center gap-2 px-2 py-3 text-sm text-muted-foreground">
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden /> Loading crew…
+                  </div>
+                ) : (crew ?? []).length === 0 ? (
                   <div className="px-2 py-3 text-sm text-muted-foreground">
                     No active crew are assigned to this vessel.
                   </div>
